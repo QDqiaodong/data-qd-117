@@ -42,6 +42,26 @@ cli.py 衔接数据链路。fixtures 为明确自制样例，代码与样例采�
 输出与两个输入路径两两不同且拒绝符号链接。语义与报告结构见 [数据契约](docs/contract.md)。
 原 access-audit 命令与参数保持不变。
 
+## 权限事件账本 access-ledger
+
+把权限目录维护为单个SQLite事件账本，从空策略起步，逐批导入NDJSON事件，并按需投影回五字段策略：
+
+```sh
+.venv/bin/access-ledger ingest --db run/ledger.db --input fixtures/events.ndjson
+.venv/bin/access-ledger snapshot --db run/ledger.db --output run/policy.json
+.venv/bin/access-ledger snapshot --db run/ledger.db --batch 1 --at 100 --output run/policy-b1.json
+.venv/bin/access-audit --source run/policy.json --output run/report-from-ledger.json
+```
+
+事件含event_id、kind(role/user/grant)、id、at(非负整数生效时刻)、op(upsert/delete)、value；
+upsert沿用现有对象结构且ID一致，delete的value为null，删除不存在对象为空操作。每次导入原子产生
+递增批次；同event_id同规范化内容忽略、异内容拒绝，纯重投不增批次；同kind/id/at的不同事件冲突拒绝。
+事件可乱序、迟到；批次提交前对可见版本的每个受影响生效边界逐一通过现有策略校验（不只验最终态，
+短暂悬空引用/继承环即使最终修好也整批回滚），任何失败回滚事件、批次与投影，进程重启后无半批数据。
+snapshot按生效时刻与已提交批次双重截止投影，各对象取最后生效事件，输出五字段策略
+（exclusions/requests为空），旧批次查询永不受后续导入影响。语义细节见 [数据契约](docs/contract.md)。
+原 access-audit、access-diff 命令与参数保持不变。
+
 ## 业务与样例结果
 
 Ada继承reader；4项请求依次allow/explicit_deny/default_deny/default_deny，并报告1项职责分离冲突。

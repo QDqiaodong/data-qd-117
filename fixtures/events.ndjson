@@ -1,0 +1,9 @@
+{"event_id":"F1","kind":"role","id":"reader","at":1,"op":"upsert","value":{"id":"reader","inherits":[]}}
+{"event_id":"F2","kind":"role","id":"editor","at":1,"op":"upsert","value":{"id":"editor","inherits":["reader"]}}
+{"event_id":"F3","kind":"role","id":"finance","at":1,"op":"upsert","value":{"id":"finance","inherits":[]}}
+{"event_id":"F4","kind":"role","id":"auditor","at":1,"op":"upsert","value":{"id":"auditor","inherits":[]}}
+{"event_id":"F5","kind":"user","id":"Ada","at":1,"op":"upsert","value":{"id":"Ada","roles":["editor","finance","auditor"]}}
+{"event_id":"F6","kind":"user","id":"Bo","at":1,"op":"upsert","value":{"id":"Bo","roles":[]}}
+{"event_id":"F7","kind":"grant","id":"G1","at":1,"op":"upsert","value":{"id":"G1","role":"reader","action":"read","resource":"/docs/*","effect":"allow"}}
+{"event_id":"F8","kind":"grant","id":"G2","at":1,"op":"upsert","value":{"id":"G2","role":"editor","action":"write","resource":"/docs/*","effect":"allow"}}
+{"event_id":"F9","kind":"grant","id":"G3","at":1,"op":"upsert","value":{"id":"G3","role":"editor","action":"*","resource":"/docs/private/*","effect":"deny"}}

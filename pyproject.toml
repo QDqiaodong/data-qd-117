@@ -10,5 +10,6 @@ dependencies = []
 [project.scripts]
 access-audit = "access_audit.cli:main"
 access-diff = "access_audit.diff_cli:main"
+access-ledger = "access_audit.ledger_cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
