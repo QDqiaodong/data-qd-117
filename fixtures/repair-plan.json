@@ -1,0 +1,33 @@
+{
+  "edits": [
+    {
+      "id": "E1",
+      "kind": "assignment",
+      "source": "Ada",
+      "role": "finance",
+      "cost": 4
+    },
+    {
+      "id": "E2",
+      "kind": "assignment",
+      "source": "Ada",
+      "role": "auditor",
+      "cost": 3
+    },
+    {
+      "id": "E3",
+      "kind": "assignment",
+      "source": "Ada",
+      "role": "editor",
+      "cost": 9
+    }
+  ],
+  "protect": [
+    {
+      "id": "P1",
+      "user": "Ada",
+      "action": "read",
+      "resource": "/docs/public/a"
+    }
+  ]
+}

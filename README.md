@@ -79,7 +79,30 @@ snapshot按生效时刻与已提交批次双重截止投影，各对象取最后
 临时资源无论成败均清理），失败退出2并原子保留旧报告。不传--requests-ndjson时原单文件模式
 行为不变。语义细节见 [数据契约](docs/contract.md)。
 
+## 离线最小代价职责分离修复 access-repair
+
+给定策略快照与修复方案（候选删边+保护请求），精确求最小代价的职责分离修复，
+输出可直接审计的修后五字段策略：
+
+```sh
+.venv/bin/access-repair --source fixtures/input.json --plan fixtures/repair-plan.json --output run/repair.json
+.venv/bin/python -c "import json;json.dump(json.load(open('run/repair.json'))['policy'],open('run/repaired-policy.json','w'))"
+.venv/bin/access-audit --source run/repaired-policy.json --output run/audit-repaired.json
+.venv/bin/access-diff --before fixtures/input.json --after run/repaired-policy.json --output run/repair-drift.json
+```
+
+方案edits至多24条（assignment删用户直接角色、inherits删角色父角色，cost正整数，
+候选边须真实且不重复），protect为必须保持allow的具体请求。只删候选边，保留全部
+用户/角色/授权；修后全体用户不再违反exclusions，protect全部仍allow，且相对原策略
+任何合法动作/资源都不得新增allow（deny撤销不放权）。按总cost、删边数、排序候选id
+序列依次精确求全局最优（分支限界裁剪，非贪心、非2^N枚举）；无解明确报错，退出码2
+并保留旧报告。报告绑定双输入SHA256、选中id、总代价与修后策略，可用access-diff复核
+无新增allow。语义细节见 [数据契约](docs/contract.md)。原 access-audit、access-diff、
+access-ledger 命令与参数保持不变。
+
 ## 业务与样例结果
 
 Ada继承reader；4项请求依次allow/explicit_deny/default_deny/default_deny，并报告1项职责分离冲突。
 roles.py计算继承闭包，model.py执行规则匹配和来源解释；不访问或修改真实权限。
+修复样例删除Ada的auditor直接赋权（E2，总代价3），冲突消除且Q1等protect请求仍allow，
+修后策略经access-diff复核无新增allow。

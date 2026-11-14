@@ -101,3 +101,44 @@ user必须存在，action与resource不得含*（请求必须具体）。
 任何校验或发布失败退出码2并原子保留旧报告；source/requests/output两两不同，
 output拒绝符号链接。成功时stdout输出{"schema_version":1,"requests":N,"candidate_matches":M}
 摘要，同输入重跑报告字节稳定。
+
+# 离线最小代价职责分离修复 access-repair v1
+
+access-repair接收一份遵守上述契约的策略快照（--source）与一份修复方案（--plan），
+离线计算最小代价的职责分离修复：只删除方案列出的候选边，保留全部用户/角色/授权，
+输出可直接审计的修后五字段策略。两端输入各自独立完整校验，任一无效即失败。
+
+方案为单个JSON对象，字段恰好为edits与protect。edits至多24条，每条字段恰好为
+id/kind/source/role/cost：id为编辑标识且全局唯一；kind=assignment表示删除source用户的
+直接role，kind=inherits表示删除source角色继承的父role；cost为正整数（<=10^9）。
+候选边必须真实存在于源策略（assignment的source为用户且直接拥有role，inherits的
+source为角色且直接继承role），按(kind,source,role)不重复。protect为具体请求数组
+（至多10000条，结构同契约请求：id/user/action/resource，id唯一，user必须存在，
+不得含通配符），修复后必须全部仍为allow。
+
+修复语义：从候选边中选择一个子集删除，其余对象一律保留。修后策略须同时满足：
+(1) 全体用户的有效角色不再违反任何exclusions职责分离约束；
+(2) protect中每个请求的决策仍为allow；
+(3) 相对原策略，任何用户在任何合法(动作,资源)上都不得新增allow——尤其不得因删除
+携带deny的角色而把deny变成allow（deny撤销不放权）。该判定复用access-diff的确定性
+探测宇宙（同一匹配函数），通配符引入的、输入中从未出现的动作与路径同样被覆盖。
+注意删除只能收缩有效角色：protect在原策略中即非allow时无解；revoke（allow变deny）
+始终允许。
+
+优化目标按字典序精确全局最优：先最小化总cost，再最小化删边数，再最小化排序后的
+候选id序列（字符串字典序）。实现为分支限界精确搜索，禁止贪心，也不枚举2^N份完整
+策略：正cost下按当前代价裁剪；冲突在删光全部剩余候选边后仍存在则子树不可行；
+protect一旦被破坏即单调不可恢复；某deny覆盖的（动作，资源）已丢全部deny角色而
+allow角色在最大剩余删除下仍存活，则整棵子树必然放权（doomed）；每个未解冲突
+至少需要一条通往冲突角色路径上的剩余候选边，取两两不相交约束族的最小边cost之和
+作为完成代价下界；单条即破坏protect或使全部超集doomed的边预先剔除。源策略已满足
+全部约束时最优解为空集（total_cost为0，selected_edits为空数组）。
+
+无解时明确失败：stderr给出具体原因（protect在原策略即非allow、候选边无法修复的
+具体冲突、或全部约束无法同时满足），退出码2并原子保留旧报告。成功报告含
+schema_version/source_sha256/plan_sha256（绑定两份输入原始字节）/selected_edits
+（排序后的选中id）/total_cost/policy（修后五字段策略：roles/users/grants按id排序、
+inherits/roles排序，exclusions/requests沿用源文档），可直接作为access-audit与
+access-diff的输入（用access-diff对比源策略可复核"无新增allow"）。同输入重跑字节
+稳定；source/plan/output两两不同，output拒绝符号链接。原access-audit、access-diff、
+access-ledger命令及参数保持不变。
