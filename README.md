@@ -62,6 +62,23 @@ snapshot按生效时刻与已提交批次双重截止投影，各对象取最后
 （exclusions/requests为空），旧批次查询永不受后续导入影响。语义细节见 [数据契约](docs/contract.md)。
 原 access-audit、access-diff 命令与参数保持不变。
 
+## 批量请求审计 access-audit --requests-ndjson
+
+面向百万级请求的批量模式：策略文件不变（其requests须为空数组），请求由NDJSON文件逐行提供，
+输出为NDJSON报告——首行绑定策略与请求原始字节的双SHA256，随后按请求ID排序逐条给出决策与
+完整匹配来源（含被deny压过的allow），末行给出请求总数与职责分离冲突：
+
+```sh
+.venv/bin/access-ledger snapshot --db run/ledger.db --output run/policy.json
+.venv/bin/access-audit --source run/policy.json --requests-ndjson run/requests.ndjson --output run/report.ndjson
+```
+
+每行<=8KiB、最多一百万条、ID全局唯一；继承、deny优先与路径边界语义与单文件模式一致，
+小规模结果与analyze逐条相同。grant按(action,resource)字面模式建索引，候选匹配次数不随
+请求数×授权数乘积增长；排序、去重、哈希与发布全程有界内存（峰值RSS<=128MiB，允许临时磁盘，
+临时资源无论成败均清理），失败退出2并原子保留旧报告。不传--requests-ndjson时原单文件模式
+行为不变。语义细节见 [数据契约](docs/contract.md)。
+
 ## 业务与样例结果
 
 Ada继承reader；4项请求依次allow/explicit_deny/default_deny/default_deny，并报告1项职责分离冲突。

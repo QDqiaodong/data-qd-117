@@ -18,9 +18,8 @@ def rows(value,limit=20000):
     if not isinstance(value,list) or len(value)>limit:raise ValueError('expected bounded array')
     return value
 
-def read(path):
-    with Path(path).open('rb') as stream:raw=stream.read(8_000_001)
-    if len(raw)>8_000_000:raise ValueError('JSON exceeds 8 MB')
+def loads(text):
+    """Parse one JSON value under the contract rules: unique object keys, finite numbers."""
     def unique(pairs):
         result={}
         for k,v in pairs:
@@ -28,16 +27,29 @@ def read(path):
             result[k]=v
         return result
     def invalid(v):raise ValueError('nonfinite JSON number: '+v)
-    data=json.loads(raw,object_pairs_hook=unique,parse_constant=invalid)
-    return data,hashlib.sha256(raw).hexdigest()
+    return json.loads(text,object_pairs_hook=unique,parse_constant=invalid)
 
-def save(path,report):
+def read(path):
+    with Path(path).open('rb') as stream:raw=stream.read(8_000_001)
+    if len(raw)>8_000_000:raise ValueError('JSON exceeds 8 MB')
+    return loads(raw),hashlib.sha256(raw).hexdigest()
+
+def save_stream(path,emit):
+    """Stream content to a temporary sibling and atomically replace the destination.
+
+    The previous file is kept on any failure and the temporary file is removed.
+    """
     dest=Path(path)
     if dest.is_symlink():raise ValueError('output cannot be a symlink')
     dest.parent.mkdir(parents=True,exist_ok=True);temp=None
     try:
         with tempfile.NamedTemporaryFile(mode='w',encoding='utf-8',dir=dest.parent,delete=False) as stream:
-            temp=stream.name;json.dump(report,stream,sort_keys=True,ensure_ascii=False,allow_nan=False,indent=2);stream.write('\n')
+            temp=stream.name;emit(stream)
         os.replace(temp,dest)
     finally:
         if temp and os.path.exists(temp):os.unlink(temp)
+
+def save(path,report):
+    def emit(stream):
+        json.dump(report,stream,sort_keys=True,ensure_ascii=False,allow_nan=False,indent=2);stream.write('\n')
+    save_stream(path,emit)
