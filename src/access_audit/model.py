@@ -13,7 +13,8 @@ def pattern(v):
 def matches(rule,value):
     return rule=='*' or rule==value or rule.endswith('/*') and value.startswith(rule[:-1])
 
-def analyze(data):
+def load_policy(data):
+    """Validate one contract document and return closure, users, grants, exclusions."""
     require(data,'roles users grants exclusions requests');closure=resolve(data['roles']);users={};grants=[];seen=set();exclusions=[]
     for u in rows(data['users'],2000):
         require(u,'id roles');uid=ident(u['id'])
@@ -31,11 +32,22 @@ def analyze(data):
         pair=rows(pair,2)
         if len(pair)!=2 or pair[0]==pair[1] or any(r not in closure for r in pair):raise ValueError('exclusion requires two distinct known roles')
         exclusions.append(sorted(pair))
+    return closure,users,grants,exclusions
+
+def parse_requests(data,users):
+    """Validate concrete requests; they never drive capability comparison."""
     requests=[];request_ids=set()
     for r in rows(data['requests'],10000):
         require(r,'id user action resource');rid=ident(r['id']);ident(r['action']);pattern(r['resource'])
         if rid in request_ids or r['user'] not in users or '*' in r['resource'] or '*' in r['action']:raise ValueError('invalid/duplicate concrete request')
-        request_ids.add(rid);effective=users[r['user']]
+        request_ids.add(rid);requests.append(r)
+    return requests
+
+def analyze(data):
+    _closure,users,grants,exclusions=load_policy(data)
+    requests=[]
+    for r in parse_requests(data,users):
+        effective=users[r['user']]
         hits=[g for g in grants if g['role'] in effective and matches(g['action'],r['action']) and matches(g['resource'],r['resource'])]
         decision='deny' if any(g['effect']=='deny' for g in hits) or not hits else 'allow'
         requests.append(dict(r,decision=decision,reason='explicit_deny' if any(g['effect']=='deny' for g in hits) else ('allowed' if hits else 'default_deny'),

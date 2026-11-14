@@ -27,6 +27,21 @@ python3 -m venv .venv
 src/access_audit/model.py 为业务模型，相关算法模块独立组织；common.py 提供受限JSON及报告发布，
 cli.py 衔接数据链路。fixtures 为明确自制样例，代码与样例采用MIT许可。
 
+## 离线权限漂移分析 access-diff
+
+面向数据目录管理员的离线能力漂移命令，沿用同一份JSON契约，两端快照独立校验：
+
+```sh
+.venv/bin/access-diff --before run/old.json --after run/new.json --output run/drift.json
+```
+
+按用户ID并集比较实际allow能力（缺席用户视为无权限，记deny/absent_user），
+每用户的granted（新增）与revoked（撤销）方向各至多一条确定性的动作/资源见证，
+含两端决策与匹配规则来源；无变化的方向明确为空数组。规则改名、继承重构但能力等价时不误报。
+报告绑定两份原始字节SHA256，数组重排不影响业务结果；任一端无效或发布失败退出2并保留旧报告，
+输出与两个输入路径两两不同且拒绝符号链接。语义与报告结构见 [数据契约](docs/contract.md)。
+原 access-audit 命令与参数保持不变。
+
 ## 业务与样例结果
 
 Ada继承reader；4项请求依次allow/explicit_deny/default_deny/default_deny，并报告1项职责分离冲突。
