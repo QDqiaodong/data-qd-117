@@ -1,0 +1,91 @@
+{
+  "roles": [
+    {
+      "id": "reader",
+      "inherits": []
+    },
+    {
+      "id": "editor",
+      "inherits": [
+        "reader"
+      ]
+    },
+    {
+      "id": "finance",
+      "inherits": []
+    },
+    {
+      "id": "auditor",
+      "inherits": []
+    }
+  ],
+  "users": [
+    {
+      "id": "Ada",
+      "roles": [
+        "editor",
+        "finance",
+        "auditor"
+      ]
+    },
+    {
+      "id": "Bo",
+      "roles": []
+    }
+  ],
+  "grants": [
+    {
+      "id": "G1",
+      "role": "reader",
+      "action": "read",
+      "resource": "/docs/*",
+      "effect": "allow"
+    },
+    {
+      "id": "G2",
+      "role": "editor",
+      "action": "write",
+      "resource": "/docs/*",
+      "effect": "allow"
+    },
+    {
+      "id": "G3",
+      "role": "editor",
+      "action": "*",
+      "resource": "/docs/private/*",
+      "effect": "deny"
+    }
+  ],
+  "exclusions": [
+    [
+      "finance",
+      "auditor"
+    ]
+  ],
+  "requests": [
+    {
+      "id": "Q1",
+      "user": "Ada",
+      "action": "read",
+      "resource": "/docs/public/a"
+    },
+    {
+      "id": "Q2",
+      "user": "Ada",
+      "action": "write",
+      "resource": "/docs/private/a"
+    },
+    {
+      "id": "Q3",
+      "user": "Bo",
+      "action": "read",
+      "resource": "/docs/public/a"
+    },
+    {
+      "id": "Q4",
+      "user": "Ada",
+      "action": "read",
+      "resource": "/docs"
+    }
+  ]
+}
